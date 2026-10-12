@@ -36,3 +36,12 @@ bash scripts/run_opd_tvg_h20_v4_controller.sh   # v4real-m005
 ```
 
 各子目录内的 README（`README_V3_SNAPSHOT.md` / `README_V4.md`）有该版的详细实验记录。
+
+## 训练数据（`data/`）
+
+| 文件 | 条数 | 说明 |
+|---|---|---|
+| `data/train_reviewed_152.jsonl` | 152 | 两个最佳 ckpt 的训练集（Charades 来源，人工 reviewed） |
+| `data/train_reviewed_393_charades_style.jsonl` | 393 | 扩展训练集（charades-style 标注，含 2 条 span 越界已修复） |
+
+每行含 `video_path / query / span / duration / source`；视频本体较大未上传（来源 TimeLens-100K）。
