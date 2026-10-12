@@ -1,0 +1,22 @@
+{
+    "_comment": "NPU(昇腾910B2C): zero3 + CPU优化器offload. 参数分片到各rank, 每卡只持1/16",
+    "bf16": {
+        "enabled": true
+    },
+    "zero_optimization": {
+        "stage": 3,
+        "offload_optimizer": {
+            "device": "cpu",
+            "pin_memory": true
+        },
+        "overlap_comm": false,
+        "reduce_scatter": false,
+        "contiguous_gradients": true,
+        "stage3_gather_16bit_weights_on_model_save": true
+    },
+    "gradient_accumulation_steps": "auto",
+    "train_micro_batch_size_per_gpu": "auto",
+    "train_batch_size": "auto",
+    "steps_per_print": 10,
+    "wall_clock_breakdown": false
+}

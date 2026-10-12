@@ -1,0 +1,1 @@
+Please find the visual event described by the sentence '{}', determining its starting and ending times. Please note that the red box indicates the correct event region, while the blue boxes indicate other events in the video that should be distinguished from the target event. The format should be: 'The event happens in <start time> - <end time> seconds'.

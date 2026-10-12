@@ -1,0 +1,289 @@
+# =============================================================================
+# Temporal-ZwZ Complete Experiment Matrix
+#
+# Two research directions:
+#   思路一: ZwZ → TVG migration (6 marking × 2 training = 12 combos)
+#   思路二: Unified image+video framework
+#
+# Two training paradigms (both RL-based, NO SFT):
+#   ZwZ-style:  Student sees MARKED video → RL (tIoU reward) → clean inference
+#   OPD-style:  EMA Teacher sees marked clips → JSD → Student sees clean video
+# =============================================================================
+
+defaults:
+  model: Qwen/Qwen2.5-VL-7B-Instruct
+  dataset: charades
+  anno_train: /cpfs01/user/chenzhaoyu.czy/data/charades/charades_sta/charades_sta_train.txt
+  anno_test: /cpfs01/user/chenzhaoyu.czy/data/charades/charades_sta/charades_sta_test.txt
+  video_dir: /cpfs01/user/chenzhaoyu.czy/data/charades/videos_3fps_480_noaudio
+  durations_path: /cpfs01/user/chenzhaoyu.czy/data/charades/charades_sta/durations.json
+  num_teacher_frames: 16
+  num_student_frames: 32
+  data_dir: /cpfs01/user/chenzhaoyu.czy/data/temporal_zwz
+  checkpoint_dir: /cpfs01/user/chenzhaoyu.czy/code/Temporal-ZwZ/checkpoints
+
+marking_strategies:
+  - numberit
+  - red_border
+  - t2sgrid
+  - timemarker
+  - numberit+red_border
+  - crop+numberit
+
+eval_datasets:
+  charades_sta:
+    dataset: charades
+    anno_path: ${defaults.anno_test}
+    video_dir: ${defaults.video_dir}
+    durations_path: ${defaults.durations_path}
+  timelens_charades:
+    dataset: timelens_charades
+    anno_path: /cpfs01/user/chenzhaoyu.czy/data/timelens_bench/charades-timelens.json
+    video_dir: ${defaults.video_dir}
+  timelens_anet:
+    dataset: timelens_anet
+    anno_path: /cpfs01/user/chenzhaoyu.czy/data/timelens_bench/activitynet-timelens.json
+    video_dir: /cpfs01/user/chenzhaoyu.czy/data/anet/videos
+
+# For image benchmarks (思路二)
+image_eval:
+  - vstar
+  - hrbench-4k
+  - hrbench-8k
+  - zoombench
+
+# =============================================================================
+# Category 0: Baselines (no distillation)
+# =============================================================================
+baselines:
+  # B1: Vanilla GRPO — pure RL, no marks, no distillation (VideoTG-R1 style)
+  grpo_vanilla:
+    name: B1-GRPO-Vanilla
+    method: grpo
+    marking_strategy: none
+    description: "Pure GRPO with tIoU reward, no marks"
+    framework: verl
+    priority: 1
+
+# =============================================================================
+# Category 1: ZwZ-style (R2I + RL) — 6 marking strategies
+# Student trains on MARKED full video → RL → inference on clean video
+# Table 1 in paper
+# =============================================================================
+zwz_marking_ablation:
+  numberit:
+    name: Z1-ZwZ-NumberIT
+    method: zwz_rl
+    marking_strategy: numberit
+    framework: easyr1
+    priority: 2
+
+  red_border:
+    name: Z2-ZwZ-RedBorder
+    method: zwz_rl
+    marking_strategy: red_border
+    framework: easyr1
+    priority: 3
+
+  t2sgrid:
+    name: Z3-ZwZ-T2SGrid
+    method: zwz_rl
+    marking_strategy: t2sgrid
+    framework: easyr1
+    priority: 4
+
+  timemarker:
+    name: Z4-ZwZ-TimeMarker
+    method: zwz_rl
+    marking_strategy: timemarker
+    framework: easyr1
+    priority: 5
+
+  numberit_red_border:
+    name: Z5-ZwZ-NumberIT+RedBorder
+    method: zwz_rl
+    marking_strategy: numberit+red_border
+    framework: easyr1
+    priority: 6
+
+  crop_numberit:
+    name: Z6-ZwZ-Crop+NumberIT
+    method: zwz_rl
+    marking_strategy: crop+numberit
+    framework: easyr1
+    priority: 7
+
+# =============================================================================
+# Category 2: OPD-style (online self-distillation) — 6 marking strategies
+# Teacher (EMA) sees marked clips → JSD → Student sees clean video
+# Table 2 in paper
+# =============================================================================
+opd_marking_ablation:
+  numberit:
+    name: O1-OPD-NumberIT
+    method: opd
+    marking_strategy: numberit
+    framework: verl
+    priority: 8
+
+  red_border:
+    name: O2-OPD-RedBorder
+    method: opd
+    marking_strategy: red_border
+    framework: verl
+    priority: 9
+
+  t2sgrid:
+    name: O3-OPD-T2SGrid
+    method: opd
+    marking_strategy: t2sgrid
+    framework: verl
+    priority: 10
+
+  timemarker:
+    name: O4-OPD-TimeMarker
+    method: opd
+    marking_strategy: timemarker
+    framework: verl
+    priority: 11
+
+  numberit_red_border:
+    name: O5-OPD-NumberIT+RedBorder
+    method: opd
+    marking_strategy: numberit+red_border
+    framework: verl
+    priority: 12
+
+  crop_numberit:
+    name: O6-OPD-Crop+NumberIT
+    method: opd
+    marking_strategy: crop+numberit
+    framework: verl
+    priority: 13
+
+# =============================================================================
+# Category 3: Hyperparameter ablation (on best marking strategy)
+# Table 3 in paper
+# =============================================================================
+hyperparameter_ablation:
+  # A1: Number of teacher/marked frames
+  frames_8:
+    name: A1a-Frames8
+    method: best    # use best from Cat 1/2
+    num_frames: 8
+    priority: 14
+
+  frames_32:
+    name: A1b-Frames32
+    method: best
+    num_frames: 32
+    priority: 15
+
+  frames_64:
+    name: A1c-Frames64
+    method: best
+    num_frames: 64
+    priority: 16
+
+  # A2: OPD EMA decay (only for OPD)
+  ema_001:
+    name: A2a-EMA001
+    method: opd
+    ema_decay: 0.01
+    priority: 17
+
+  ema_010:
+    name: A2b-EMA010
+    method: opd
+    ema_decay: 0.10
+    priority: 18
+
+  # A3: JSD beta (only for OPD)
+  jsd_03:
+    name: A3a-JSD03
+    method: opd
+    jsd_beta: 0.3
+    priority: 19
+
+  jsd_07:
+    name: A3b-JSD07
+    method: opd
+    jsd_beta: 0.7
+    priority: 20
+
+# =============================================================================
+# Category 4: Model ablation
+# =============================================================================
+model_ablation:
+  qwen3_vl_zwz:
+    name: M1-Qwen3VL-ZwZ
+    method: zwz_rl
+    model: Qwen/Qwen3-VL-8B
+    priority: 21
+
+  qwen3_vl_opd:
+    name: M2-Qwen3VL-OPD
+    method: opd
+    model: Qwen/Qwen3-VL-8B
+    priority: 22
+
+# =============================================================================
+# Category 5: Unified framework (思路二)
+# Joint image + video training
+# =============================================================================
+unified_framework:
+  # U1: Image-only baseline (ZwZ reproduction on image perception)
+  image_only:
+    name: U1-ImageOnly
+    method: zwz_rl
+    data_source: image
+    description: "ZwZ-style on image perception only (V*Bench data)"
+    priority: 23
+
+  # U2: Video-only (same as best from Cat 1)
+  video_only:
+    name: U2-VideoOnly
+    method: zwz_rl
+    data_source: video
+    description: "ZwZ-style on video temporal grounding only"
+    priority: 24
+
+  # U3: Joint training (image + video)
+  joint_training:
+    name: U3-Joint
+    method: zwz_rl
+    data_source: unified
+    description: "Joint image+video training with unified marking"
+    priority: 25
+
+  # U4: Cross-modal transfer (train on image → eval on video)
+  cross_modal_transfer:
+    name: U4-CrossModal
+    method: zwz_rl
+    data_source: image
+    eval_on: video
+    description: "Train on marked image tiles, evaluate temporal grounding"
+    priority: 26
+
+# =============================================================================
+# Evaluation metrics
+# =============================================================================
+video_metrics:
+  - R1@0.3
+  - R1@0.5
+  - R1@0.7
+  - mIoU
+
+image_metrics:
+  - accuracy
+
+# =============================================================================
+# Paper table mapping
+# =============================================================================
+paper_tables:
+  table1: "ZwZ-style marking strategy comparison (Z1-Z6)"
+  table2: "OPD-style marking strategy comparison (O1-O6)"
+  table3: "ZwZ vs OPD comparison (best strategy)"
+  table4: "Hyperparameter ablation (A1-A3)"
+  table5: "Model ablation (M1-M2)"
+  table6: "Unified framework (U1-U4)"
